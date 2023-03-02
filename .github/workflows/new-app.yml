@@ -81,6 +81,7 @@ jobs:
               }
             ],
             "family": "$FAMILY"
+            "taskRoleArn": "arn:aws:iam::226529185160:role/ecs-task-execution"
           }
           EOF
           )
