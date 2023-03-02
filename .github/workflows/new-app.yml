@@ -43,7 +43,7 @@ jobs:
 
       - name: Register new task definition in ECS
         env:
-          FAMILY: my-task-family
+          FAMILY: my-ecs-task-def
           REPO_URI: ghcr.io/sushantpatil12/new-app
           BUILD_NUMBER: ${{ github.run_number }}
           REGION: us-east-1
