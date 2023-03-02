@@ -77,7 +77,6 @@ jobs:
                 "repositoryCredentials": {
                   "credentialsParameter": "arn:aws:secretsmanager:us-east-1:226529185160:secret:git-62K593"
                 },
-                "taskRoleArn": "$TASK_EXECUTION_ROLE_ARN"
               }
             ],
             "family": "$FAMILY",
