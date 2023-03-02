@@ -1,0 +1,88 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_DEFAULT_REGION: us-east-1
+  ECS_CLUSTER: my-ecs-cluster
+  ECS_SERVICE_NAME: my-service
+  ECS_TASK_DEFINITION: my-ecs-task-def
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: sushantpatil12
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        env:
+          REPO_URI: ghcr.io/sushantpatil12/new-app
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          docker build -t $REPO_URI:$BUILD_NUMBER .
+          docker push $REPO_URI:$BUILD_NUMBER
+
+      - name: Register new task definition in ECS
+        env:
+          FAMILY: my-task-family
+          REPO_URI: ghcr.io/sushantpatil12/new-app
+          BUILD_NUMBER: ${{ github.run_number }}
+          REGION: us-east-1
+          TASK_EXECUTION_ROLE_ARN: arn:aws:iam::226529185160:role/ecs-task-execution
+        run: |
+          json=$(cat <<EOF
+          {
+            "containerDefinitions": [
+              {
+                "name": "$FAMILY",
+                "memory": 1024,
+                "image": "$REPO_URI:$BUILD_NUMBER",
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/$FAMILY",
+                    "awslogs-region": "$REGION",
+                    "awslogs-create-group": "true",
+                    "awslogs-stream-prefix": "ecs"
+                  }
+                },
+                "essential": true,
+                "portMappings": [
+                  {
+                    "hostPort": 0,
+                    "protocol": "tcp",
+                    "containerPort": 8080
+                  }
+                ],
+                "repositoryCredentials": {
+                  "credentialsParameter": "arn:aws:secretsmanager:us-east-1:226529185160:secret:git-62K593"
+                },
+                "taskRoleArn": "$TASK_EXECUTION_ROLE_ARN"
+              }
+            ],
+            "family": "$FAMILY"
+          }
+          EOF
+          )
+          echo "$json" > task-definition.json
+          aws ecs register-task-definition --cli-input-json file://task-definition.json
+
+      - name: Update ECS service
+        env:
+          CLUSTER: ${{ env.ECS_CLUSTER }}
+          SERVICE_NAME: ${{ env.ECS_SERVICE_NAME }}
+          TASK_DEFINITION: ${{ env.ECS_TASK_DEFINITION }}
+        run: |
+          aws ecs update-service --cluster $CLUSTER --service $SERVICE_NAME --task-definition $TASK_DEFINITION --desired-count 1

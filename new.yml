@@ -28,7 +28,7 @@ jobs:
 
     - name: Build and push Docker image
       env:
-        REPO_URI: ghcr.io/sushantpatil12/resume-builder-dev
+        REPO_URI: ghcr.io/sushantpatil12/project-app
         BUILD_NUMBER: ${{ github.run_number }}
       run: |
         docker build -t $REPO_URI:$BUILD_NUMBER .
@@ -37,7 +37,7 @@ jobs:
     - name: Register new task definition in ECS
       env:
         FAMILY: my-task-family
-        REPO_URI: ghcr.io/sushantpatil12/resume-builder-dev
+        REPO_URI: ghcr.io/sushantpatil12/project-app
         BUILD_NUMBER: ${{ github.run_number }}
         REGION: us-east-1
 	TASK_EXECUTION_ROLE_ARN: arn:aws:iam::226529185160:role/ecs-task-execution
@@ -69,8 +69,8 @@ jobs:
                 }
               ],
               "repositoryCredentials": {
-        	"credentialsParameter": "arn:aws:secretsmanager:us-east-1:226529185160:secret:git-62K593"
-      	      },
+		"credentialsParameter": "arn:aws:secretsmanager:us-east-1:226529185160:secret:git-62K593"
+            },
 	      "taskRoleArn": "$TASK_EXECUTION_ROLE_ARN"
             }
           ],
