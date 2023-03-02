@@ -81,6 +81,7 @@ jobs:
             ],
             "family": "$FAMILY",
             "taskRoleArn": "$TASK_EXECUTION_ROLE_ARN"
+            "executionRoleArn": "$TASK_EXECUTION_ROLE_ARN"
           }
           EOF
           )
