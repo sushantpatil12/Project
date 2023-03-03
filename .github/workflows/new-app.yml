@@ -3,13 +3,16 @@ name: Deploy to ECS
 on:
   push:
     branches:
-      - master
+      - dev
 
 env:
   AWS_DEFAULT_REGION: us-east-1
   ECS_CLUSTER: my-ecs-cluster
   ECS_SERVICE_NAME: my-service
-  ECS_TASK_DEFINITION: my-ecs-task-def
+  ECS_TASK_DEFINITION: resume-builder-task
+  REPO_URI: ghcr.io/sushantpatil12/my-resume
+  BUILD_NUMBER: ${{ github.run_number }}
+  TASK_EXECUTION_ROLE_ARN: arn:aws:iam::226529185160:role/ecs-task-execution
 
 jobs:
   deploy:
@@ -27,9 +30,6 @@ jobs:
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
 
       - name: Build and push Docker image
-        env:
-          REPO_URI: ghcr.io/sushantpatil12/new-app
-          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           docker build -t $REPO_URI:$BUILD_NUMBER .
           docker push $REPO_URI:$BUILD_NUMBER
@@ -42,12 +42,6 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Register new task definition in ECS
-        env:
-          FAMILY: my-ecs-task-def
-          REPO_URI: ghcr.io/sushantpatil12/new-app
-          BUILD_NUMBER: ${{ github.run_number }}
-          #REGION: us-east-1
-          TASK_EXECUTION_ROLE_ARN: arn:aws:iam::226529185160:role/ecs-task-execution
         run: |
           json=$(cat <<EOF
           {
@@ -88,9 +82,5 @@ jobs:
           aws ecs register-task-definition --cli-input-json file://task-definition.json
 
       - name: Update ECS service
-        env:
-          CLUSTER: ${{ env.ECS_CLUSTER }}
-          SERVICE_NAME: ${{ env.ECS_SERVICE_NAME }}
-          TASK_DEFINITION: ${{ env.ECS_TASK_DEFINITION }}
         run: |
           aws ecs update-service --cluster $CLUSTER --service $SERVICE_NAME --task-definition $TASK_DEFINITION --desired-count 1
