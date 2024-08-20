@@ -1,86 +1,61 @@
-name: Deploy to ECS
+name: Deploy to AWS Lambda
 
 on:
-  push:
-    branches:
-      - dev
+  workflow_dispatch:
+    inputs:
+      docker_build:
+        description: 'Set to true to build Docker image and update Lambda function'
+        required: true
+        default: 'false'
+        type: string
+      update_envs:
+        description: 'Set to true to update Lambda environment variables'
+        required: true
+        default: 'false'
+        type: string
 
 env:
-  AWS_DEFAULT_REGION: us-east-1
-  ECS_CLUSTER: my-ecs-cluster
-  ECS_SERVICE_NAME: my-service
-  ECS_TASK_DEFINITION: resume-builder-task
-  REPO_URI: ghcr.io/sushantpatil12/my-resume
-  BUILD_NUMBER: ${{ github.run_number }}
-  TASK_EXECUTION_ROLE_ARN: arn:aws:iam::226529185160:role/ecs-task-execution
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: <your-account-id>.dkr.ecr.$AWS_REGION.amazonaws.com
+  ECR_REPOSITORY: your-ecr-repo
+  LAMBDA_FUNCTION_NAME: your-lambda-function
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: sushantpatil12
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+    - name: Set up Docker
+      if: ${{ github.event.inputs.docker_build == 'true' }}
+      uses: docker/setup-buildx-action@v2
 
-      - name: Build and push Docker image
-        run: |
-          docker build -t $REPO_URI:$BUILD_NUMBER .
-          docker push $REPO_URI:$BUILD_NUMBER
+    - name: Log in to Amazon ECR
+      if: ${{ github.event.inputs.docker_build == 'true' }}
+      run: |
+        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+    - name: Build and push Docker image
+      if: ${{ github.event.inputs.docker_build == 'true' }}
+      run: |
+        IMAGE_TAG=$(date +%Y%m%d%H%M%S)
+        docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Register new task definition in ECS
-        run: |
-          json=$(cat <<EOF
-          {
-            "containerDefinitions": [
-              {
-                "name": "$FAMILY",
-                "memory": 128,
-                "cpu": 256 ,
-                "image": "$REPO_URI:$BUILD_NUMBER",
-                "logConfiguration": {
-                  "logDriver": "awslogs",
-                  "options": {
-                    "awslogs-group": "/ecs/$FAMILY",
-                    "awslogs-region": "$REGION",
-                    "awslogs-create-group": "true",
-                    "awslogs-stream-prefix": "ecs"
-                  }
-                },
-                "essential": true,
-                "portMappings": [
-                  {
-                    "hostPort": 8080,
-                    "protocol": "tcp",
-                    "containerPort": 8080
-                  }
-                ],
-                "repositoryCredentials": {
-                  "credentialsParameter": "arn:aws:secretsmanager:us-east-1:226529185160:secret:git-62K593"
-                }
-              }
-            ],
-            "family": "$FAMILY",
-            "executionRoleArn": "$TASK_EXECUTION_ROLE_ARN"
-          }
-          EOF
-          )
-          echo "$json" > task-definition.json
-          aws ecs register-task-definition --cli-input-json file://task-definition.json
+    - name: Update Lambda function with the new Docker image
+      if: ${{ github.event.inputs.docker_build == 'true' }}
+      run: |
+        IMAGE_TAG=$(date +%Y%m%d%H%M%S)
+        aws lambda update-function-code \
+          --function-name $LAMBDA_FUNCTION_NAME \
+          --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Update ECS service
-        run: |
-          aws ecs update-service --cluster $CLUSTER --service $SERVICE_NAME --task-definition $TASK_DEFINITION --desired-count 1
+    - name: Update Lambda environment variables
+      if: ${{ github.event.inputs.update_envs == 'true' }}
+      run: |
+        aws lambda update-function-configuration \
+          --function-name $LAMBDA_FUNCTION_NAME \
+          --environment "Variables={DB_HOST=localhost,DB_PORT=5432,...}"  # Add your environment variables here
