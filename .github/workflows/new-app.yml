@@ -19,6 +19,7 @@ env:
   ECR_REGISTRY: <your-account-id>.dkr.ecr.$AWS_REGION.amazonaws.com
   ECR_REPOSITORY: your-ecr-repo
   LAMBDA_FUNCTION_NAME: your-lambda-function
+  IMAGE_TAG: ${{github.run_number}}
 
 jobs:
   deploy:
@@ -40,7 +41,6 @@ jobs:
     - name: Build and push Docker image
       if: ${{ github.event.inputs.docker_build == 'true' }}
       run: |
-        IMAGE_TAG=$(date +%Y%m%d%H%M%S)
         docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
         docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -48,7 +48,6 @@ jobs:
     - name: Update Lambda function with the new Docker image
       if: ${{ github.event.inputs.docker_build == 'true' }}
       run: |
-        IMAGE_TAG=$(date +%Y%m%d%H%M%S)
         aws lambda update-function-code \
           --function-name $LAMBDA_FUNCTION_NAME \
           --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -57,5 +56,6 @@ jobs:
       if: ${{ github.event.inputs.update_envs == 'true' }}
       run: |
         aws lambda update-function-configuration \
-          --function-name $LAMBDA_FUNCTION_NAME \
-          --environment "Variables={DB_HOST=localhost,DB_PORT=5432,...}"  # Add your environment variables here
+            --function-name your_lambda_function_name \
+            --environment file://env.json
+
