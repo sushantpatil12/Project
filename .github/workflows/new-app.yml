@@ -1,12 +1,13 @@
-name: Dynamic Workflow for Multi-Stage Deployment
+name: Conditional Multi-Stage Deployment
 
 on:
   workflow_dispatch:
     inputs:
       branch:
         description: "Branch to deploy (e.g., dev, staging, production)"
-        required: true
-        default: "dev"
+        required: false # Branch input is optional
+        default: ""
+
   push:
     branches:
       - dev
@@ -14,7 +15,18 @@ on:
       - main
 
 jobs:
+  validate-input:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if branch is provided
+        run: |
+          if [ "${{ github.event.inputs.branch || github.ref_name }}" == "" ]; then
+            echo "No branch provided or detected. Exiting workflow."
+            exit 1
+          fi
+
   build:
+    needs: validate-input
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -34,7 +46,7 @@ jobs:
   deploy-development:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/dev' || inputs.branch == 'dev' }}
+    if: ${{ github.event.inputs.branch == 'dev' || github.ref_name == 'dev' }}
     steps:
       - name: Deploy to Development
         run: echo "Deploying to Development"
@@ -42,7 +54,7 @@ jobs:
   deploy-staging:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/staging' || inputs.branch == 'staging' }}
+    if: ${{ github.event.inputs.branch == 'staging' || github.ref_name == 'staging' }}
     steps:
       - name: Deploy to Staging
         run: echo "Deploying to Staging"
@@ -50,7 +62,7 @@ jobs:
   deploy-production:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' || inputs.branch == 'production' }}
+    if: ${{ github.event.inputs.branch == 'main' || github.ref_name == 'main' }}
     steps:
       - name: Deploy to Production
         run: echo "Deploying to Production"
