@@ -27,7 +27,6 @@ jobs:
         run: echo "Deploying to Development"
 
   deploy-staging:
-    needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.branch == 'staging' || github.ref_name == 'staging' }}
     steps:
@@ -35,7 +34,6 @@ jobs:
         run: echo "Deploying to Staging"
 
   deploy-master:
-    needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.branch == 'master' || github.ref_name == 'master' }}
     steps:
