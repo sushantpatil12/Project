@@ -13,6 +13,7 @@ on:
       - dev
       - staging
       - main
+      - master
 
 jobs:
   validate-input:
@@ -59,10 +60,12 @@ jobs:
       - name: Deploy to Staging
         run: echo "Deploying to Staging"
 
-  deploy-production:
+  deploy-master:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.branch == 'main' || github.ref_name == 'main' }}
+    if: ${{ github.event.inputs.branch == 'master' || github.ref_name == 'master' }}
     steps:
       - name: Deploy to Production
         run: echo "Deploying to Production"
+        
+  
