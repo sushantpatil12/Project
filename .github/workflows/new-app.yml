@@ -8,13 +8,6 @@ on:
         required: false # Branch input is optional
         default: ""
 
-  push:
-    branches:
-      - dev
-      - staging
-      - main
-      - master
-
 jobs:
   validate-input:
     runs-on: ubuntu-latest
