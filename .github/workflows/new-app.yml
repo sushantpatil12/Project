@@ -19,26 +19,7 @@ jobs:
             exit 1
           fi
 
-  build:
-    needs: validate-input
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build application
-        run: npm run build
-
   deploy-development:
-    needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.branch == 'dev' || github.ref_name == 'dev' }}
     steps:
